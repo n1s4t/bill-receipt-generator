@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProBill Receipt Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- html2canvas (pinned) draws the receipt into a PNG. It loads from cdnjs, so PNG export needs an internet connection. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--navy:#0b1b3a;--navy2:#16294f;--blue:#2f6bff;--blue-soft:#eaf1ff;--line:#dfe5f0;--bg:#f4f6fb;--ink:#14213d;--mute:#5d6b86;--bad:#c62f3e;--ok:#12805c;--warn:#a86a00}
+*{box-sizing:border-box}
+body{margin:0;font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+.top{background:var(--navy);color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:20px;letter-spacing:-.01em}.brand span{color:#7fa6ff}
+.top small{color:#b8c6e6}
+.wrap{max-width:1280px;margin:0 auto;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,560px);gap:24px;align-items:start}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr;padding:14px}}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.card h2{margin:0 0 14px;font-size:16px;color:var(--navy)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+label{display:block;font-size:13px;font-weight:600;color:var(--navy2);margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #c9d3e6;border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid #b9cdff;border-color:var(--blue)}
+input[readonly]{background:#f1f4fa}
+.hint{font-size:12px;color:var(--mute);margin-top:3px}
+.row{display:grid;grid-template-columns:2fr .8fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+@media(max-width:620px){.row{grid-template-columns:1fr 1fr}.row .d{grid-column:1/-1}}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--blue);color:#fff}
+button.sec{background:var(--blue-soft);color:var(--navy)}button.dark{background:var(--navy)}button.ghost{background:#fff;border:1px solid #c9d3e6;color:var(--navy)}
+button.x{padding:10px 12px;background:#fdecef;color:var(--bad)}
+[hidden]{display:none!important}
+.cur{max-width:240px;margin-bottom:14px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.toggle{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #c9d3e6;border-radius:10px}
+.toggle input{width:20px;height:20px;margin:0}.toggle label{margin:0}
+#errs{display:none;background:#fdecef;border:1px solid #f1b8c0;color:var(--bad);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px}
+#errs ul{margin:4px 0 0;padding-left:18px}
+.preview{position:sticky;top:12px}
+@media(max-width:1000px){.preview{position:static}}
+.sheet{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px;font-variant-numeric:tabular-nums}
+.rh{display:flex;justify-content:space-between;gap:12px;border-bottom:3px solid var(--navy);padding-bottom:14px;margin-bottom:16px}
+.rh h3{margin:0;font-size:20px;color:var(--navy)}.rh .m{color:var(--mute);font-size:13px}
+.rh .t{text-align:right;font-weight:800;color:var(--navy);font-size:18px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px}
+.meta b{display:block;color:var(--mute);font-weight:600;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--navy);color:#fff;text-align:left;padding:8px;font-weight:600}
+th.n,td.n{text-align:right}td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.sum{margin:14px 0 0 auto;width:min(100%,320px);font-size:13px}
+.sum div{display:flex;justify-content:space-between;padding:4px 0}
+.sum .g{border-top:2px solid var(--navy);margin-top:6px;padding-top:8px;font-size:16px;font-weight:800;color:var(--navy)}
+.sum .b{background:var(--blue-soft);border-radius:8px;padding:8px;font-weight:800;color:var(--navy)}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:12px}
+.Paid{background:#dcf5ea;color:var(--ok)}.Partially{background:#fff0d1;color:var(--warn)}.Unpaid{background:#fdecef;color:var(--bad)}
+.bar{margin-top:18px;text-align:center}.bar svg{max-width:100%;height:54px}.bar small{display:block;color:var(--mute);font-size:11px;letter-spacing:.08em}
+.note{margin-top:14px;font-size:13px;color:var(--ink)}
+.thanks{margin-top:16px;padding-top:12px;border-top:1px dashed var(--line);text-align:center;color:var(--navy2);font-size:13px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media print{
+ body{background:#fff}.top,.form,.actions-bar,#errs,#toast,.pn{display:none!important}
+ .wrap{display:block;padding:0;max-width:none}.preview{position:static}
+ .sheet{border:0;border-radius:0;padding:0}
+ *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+ <div class="brand">Pro<span>Bill</span> Receipt Generator</div>
+ <small>Invoices and payment receipts for digital marketing agencies</small>
+</header>
+
+<main class="wrap">
+<section class="form">
+ <div id="errs" role="alert"></div>
+
+ <div class="card"><h2>Agency and client</h2>
+  <div class="grid">
+   <div><label for="agency">Agency / company name *</label><input id="agency" autocomplete="organization" value="LoR!K Craft" placeholder="LoR!K Craft"></div>
+   <div><label for="agencyEmail">Agency email *</label><input id="agencyEmail" type="email" autocomplete="email"></div>
+   <div><label for="client">Client name *</label><input id="client"></div>
+   <div><label for="clientEmail">Client email (optional)</label><input id="clientEmail" type="email"></div>
+  </div>
+  <p class="hint">Agency name and email are saved in this browser only. Clearing browser data removes them.</p>
+ </div>
+
+ <div class="card"><h2>Receipt details</h2>
+  <div class="grid">
+   <div><label for="invNo">Invoice number</label>
+    <div style="display:flex;gap:8px"><input id="invNo" readonly><button class="ghost" id="copyBtn" type="button">Copy</button></div></div>
+   <div><label for="invDate">Invoice date</label><input id="invDate" type="date"></div>
+   <div><label for="method">Payment method</label>
+    <select id="method"><option>Bank Transfer</option><option>bKash</option><option>Nagad</option><option>Rocket</option><option>Cash</option><option>Card</option><option>Cryptocurrency</option><option>Other</option></select></div>
+   <div class="full"><label for="notes">Notes / payment reference</label><textarea id="notes" rows="2"></textarea></div>
+  </div>
+ </div>
+
+ <div class="card"><h2>Services and Expenses</h2>
+  <div class="cur"><label for="svcCur">Currency</label><select id="svcCur"><option value="BDT">BDT (৳)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select><div class="hint" id="svcNote">Unit prices below are entered in this currency.</div></div>
+  <div id="rows"></div>
+  <button class="sec" id="addRow" type="button">+ Add row</button>
+ </div>
+
+ <div class="card"><h2>Exchange Rates, Tax, and Payment</h2>
+  <div class="toggle"><input type="checkbox" id="extraOn"><label for="extraOn">Add a USD amount (optional)</label></div>
+  <div id="extraBody" hidden style="margin-top:14px">
+   <div class="grid">
+    <div><label for="usd">USD Amount</label><input id="usd" type="number" min="0" step="0.01" placeholder="0.00"></div>
+    <div><label for="rate">USD to BDT Rate</label><input id="rate" type="number" min="0" step="0.01" placeholder="e.g. 141.70"><div class="hint">Entered by you. Never fetched or changed automatically.</div></div>
+    <div class="full"><label for="taxAmt">Tax (15%)</label><input id="taxAmt" readonly value="0.00" aria-describedby="taxHint"><div class="hint" id="taxHint">Added automatically: 15% of the USD amount after conversion to BDT. Shown in BDT.</div></div>
+   </div>
+  </div>
+  <p class="hint" id="usdFormula" style="margin:12px 0 0;white-space:pre-line"></p>
+ </div>
+
+ <div class="card"><h2>Discount and payment</h2>
+  <div class="grid">
+   <div><label for="discount">Discount <span id="discCur">(BDT)</span></label><input id="discount" type="number" min="0" step="0.01" value="0"></div>
+   <div class="full"><div class="toggle"><input type="checkbox" id="cashout"><label for="cashout">Add 2% cash-out charge (on the tax-inclusive total)</label></div></div>
+   <div><label for="paid">Amount Paid</label><div style="display:flex;gap:8px"><input id="paid" type="number" min="0" step="0.01" value="0"><select id="paidCur" aria-label="Amount Paid currency" style="width:110px"><option value="BDT">BDT (৳)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select></div><div class="hint" id="paidNote"></div></div>
+   <div id="payRateWrap" class="full" hidden><label for="payRate" id="payRateLabel">Conversion rate (optional)</label><input id="payRate" type="number" min="0" step="0.01" placeholder="e.g. 141.70"><div class="hint">Optional. Amount Paid is shown in its own currency and is never converted automatically. Enter a rate only if you want the balance calculated in the receipt currency.</div></div>
+  </div>
+ </div>
+
+ <div class="actions actions-bar">
+  <button class="dark" id="genBtn" type="button">Generate receipt</button>
+  <button id="printBtn" type="button">Print receipt</button>
+  <button class="sec" id="pdfBtn" type="button">Save as PDF</button>
+  <button class="ghost" id="newBtn" type="button">New receipt</button>
+  <button class="ghost" id="resetBtn" type="button">Reset form</button>
+ </div>
+</section>
+
+<aside class="preview" aria-label="Receipt preview">
+ <p class="pn" style="margin:0 0 8px;font-weight:700;color:var(--navy)">Live receipt preview</p>
+ <p class="pn hint" id="rateWarn" role="status" hidden style="margin:0 0 8px;color:var(--bad);font-weight:600"></p>
+ <div class="sheet" id="sheet"></div>
+ <div class="pn" style="margin-top:12px"><button class="dark" id="pngBtn" type="button" style="width:100%;padding:14px 16px;font-size:16px">Download PNG</button></div>
+</aside>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+/* ============ FINANCIAL LOGIC (pure functions, shared by form, preview and print) ============ */
+// Round to 2 decimals (after nudging for float error, e.g. 97.773 -> 97.77).
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+// Parse any input to a finite, non-negative number; anything invalid becomes 0.
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+
+/**
+ * The receipt currency S is the currency selected in Services and Expenses. Nothing is converted
+ * automatically: service rows, subtotal, discount, cash-out and total are all in S.
+ * Step 1  convertedUsd   = USD Amount × USD to BDT Rate   (optional section; it produces BDT, so it is
+ *                           included only when S is BDT, and skipped when the section is off)
+ * Step 2  gross          = Σ(qty × unit) + convertedUsd    (each expense counted once)
+ *         subtotal       = gross − discount                 (discount capped at gross)
+ * Step 3  tax            = convertedUsd × 15%  — tax applies ONLY to the converted USD amount,
+ *                           never to Services and Expenses, and is added nowhere else
+ * Step 4  totalWithTax   = subtotal + tax
+ * Step 5  cashoutCharge  = totalWithTax × 2%  (only if toggle on; separate from tax, never taxed)
+ *         finalTotal     = totalWithTax + cashoutCharge
+ * Step 6  Amount Paid stays in its own currency P. If P = S it is subtracted directly. If P differs, it is
+ *         converted only when the user enters a conversion rate; otherwise the balance is left blank.
+ *         balance        = finalTotal − paid (in S)
+ * Every money value is rounded to 2 decimals as it is produced, so the form,
+ * preview and print all show identical numbers.
+ */
+const TAX_PCT = 15;   // fixed 15% tax, applied only to the converted USD amount
+function calculate(s) {
+  const S = s.svcCur, P = s.paidCur;
+  const lines = s.items.map(it => ({...it, amount: r2(num(it.qty) * num(it.unit))}));
+  const itemsTotal = r2(lines.reduce((a, l) => a + l.amount, 0));
+  const usdActive = S === 'BDT';
+  const convertedUsd = usdActive ? r2(num(s.usd) * num(s.rate)) : 0;   // USD amount × your USD to BDT rate
+  const gross = r2(itemsTotal + convertedUsd);
+  const discount = Math.min(r2(num(s.discount)), gross);
+  const subtotal = r2(gross - discount);
+  const tax = r2(convertedUsd * TAX_PCT / 100);
+  const totalWithTax = r2(subtotal + tax);
+  const cashout = s.cashout ? r2(totalWithTax * 0.02) : 0;
+  const finalTotal = r2(totalWithTax + cashout);
+  const paidEntered = r2(num(s.paid)), payRate = num(s.payRate);
+  const paidInS = P === S || paidEntered === 0 ? paidEntered : (payRate > 0 ? r2(paidEntered * payRate) : null);
+  const balance = paidInS === null ? null : r2(finalTotal - paidInS);
+  let status = '';
+  if (paidInS !== null) status = finalTotal > 0 && paidInS >= finalTotal ? 'Paid' : paidInS > 0 ? 'Partially Paid' : 'Unpaid';
+  return {lines, itemsTotal, convertedUsd, gross, discount, subtotal, tax, totalWithTax, cashout, finalTotal, paidEntered, paidInS, balance, status, usdActive};
+}
+
+/* ============ STATE & HELPERS ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let dateTouched = false, rowId = 0;
+
+const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+function newInvoiceNo() {
+  const d = today().replace(/-/g,'');
+  const rnd = Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => (b % 36).toString(36)).join('').toUpperCase();
+  return `PB-${d}-${rnd}`;
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2200); }
+
+function addRow(desc='', qty='1', unit='') {
+  const id = ++rowId, div = document.createElement('div');
+  div.className = 'row'; div.dataset.id = id;
+  div.innerHTML = `<div class="d"><label for="d${id}">Service description</label><input id="d${id}" class="rd" value="${esc(desc)}"></div>
+   <div><label for="q${id}">Qty</label><input id="q${id}" class="rq" type="number" min="0" step="1" value="${qty}"></div>
+   <div><label for="u${id}">Unit price <span class="cc">(BDT)</span></label><input id="u${id}" class="ru" type="number" min="0" step="0.01" value="${unit}"></div>
+   <div><label for="a${id}">Amount <span class="cc">(BDT)</span></label><input id="a${id}" class="ra" readonly value="0.00"></div>
+   <button type="button" class="x" aria-label="Remove row">✕</button>`;
+  div.querySelector('.x').onclick = () => { if (document.querySelectorAll('.row').length > 1) { div.remove(); update(); } else toast('Keep at least one row'); };
+  $('rows').appendChild(div);
+}
+function readState() {
+  const ex = $('extraOn').checked;
+  return {
+    items: [...document.querySelectorAll('.row')].map(r => ({desc: r.querySelector('.rd').value.trim(), qty: r.querySelector('.rq').value, unit: r.querySelector('.ru').value})),
+    // The USD amount counts only when the optional USD section is switched on.
+    extra: ex, usd: ex ? $('usd').value : '', rate: ex ? $('rate').value : '',
+    discount: $('discount').value, cashout: $('cashout').checked, paid: $('paid').value, payRate: $('payRate').value,
+    svcCur: $('svcCur').value, paidCur: $('paidCur').value
+  };
+}
+
+/* ============ VALIDATION ============ */
+function numericErrors() {
+  const e = [], neg = v => v !== '' && !(parseFloat(v) >= 0);
+  document.querySelectorAll('.row').forEach((r,i) => {
+    if (neg(r.querySelector('.rq').value)) e.push(`Row ${i+1}: quantity cannot be negative or invalid.`);
+    if (neg(r.querySelector('.ru').value)) e.push(`Row ${i+1}: unit price cannot be negative or invalid.`);
+  });
+  const ex = $('extraOn').checked;
+  [...(ex ? [['usd','USD Amount'],['rate','USD to BDT Rate']] : []),['discount','Discount'],['paid','Amount paid'],['payRate','Conversion rate']].forEach(([id,n]) => { if (neg($(id).value)) e.push(`${n} cannot be negative or invalid.`); });
+  // The USD to BDT Rate is required only when a USD amount actually joins the (BDT) receipt.
+  if (ex && $('svcCur').value === 'BDT' && num($('usd').value) > 0 && num($('rate').value) <= 0) e.push('Enter a USD to BDT Rate greater than 0 to convert the USD Amount.');
+  return e;
+}
+function requiredErrors(c) {
+  const e = [];
+  if (!$('agency').value.trim()) e.push('Agency / company name is required.');
+  const ae = $('agencyEmail').value.trim(); if (!ae) e.push('Agency email is required.'); else if (!$('agencyEmail').checkValidity()) e.push('Agency email is not a valid address.');
+  if (!$('client').value.trim()) e.push('Client name is required.');
+  if ($('clientEmail').value.trim() && !$('clientEmail').checkValidity()) e.push('Client email is not a valid address.');
+  if (!$('invDate').value) e.push('Invoice date is required.');
+  if (c.gross <= 0) e.push('Add at least one service amount above zero.');
+  return e;
+}
+function showErrors(list) {
+  const b = $('errs');
+  if (!list.length) { b.style.display = 'none'; b.innerHTML = ''; return; }
+  b.style.display = 'block'; b.innerHTML = `<strong>Please fix the following:</strong><ul>${list.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+}
+
+/* ============ BARCODE-STYLE IDENTIFIER (not a scannable barcode) ============ */
+function idGraphic(text) {
+  let h = 2166136261, bars = '', x = 4;
+  for (let i = 0; i < text.length * 3; i++) {
+    h = Math.imul(h ^ text.charCodeAt(i % text.length), 16777619) >>> 0;
+    const w = 1 + (h % 3), gap = 1 + ((h >> 4) % 2);
+    bars += `<rect x="${x}" y="0" width="${w}" height="50" fill="#0b1b3a"/>`; x += w + gap;
+  }
+  return `<svg viewBox="0 0 ${x+4} 50" preserveAspectRatio="none" role="img" aria-label="Receipt identifier graphic for ${esc(text)}">${bars}</svg>`;
+}
+
+/* ============ RENDER ============ */
+function update() {
+  // ON: the USD fields are enabled. OFF: they are hidden and disabled, and readState() ignores them.
+  const on = $('extraOn').checked;
+  $('extraBody').hidden = !on; $('usd').disabled = !on; $('rate').disabled = !on;
+  const s = readState(), c = calculate(s);
+  const S = s.svcCur, P = s.paidCur;
+  // Currency synchronisation: the receipt uses the currencies actually selected, with no automatic conversion.
+  const CS = {BDT:'৳', USD:'$', EUR:'€'};
+  const fmt = (v, cur) => CS[cur] + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const money = v => fmt(v, S);                       // receipt amounts: subtotal, discount, tax, cash-out, total, balance
+  const warn = [];
+  $('payRateWrap').hidden = P === S;
+  $('payRateLabel').textContent = `${P} to ${S} conversion rate (optional)`;
+  $('discCur').textContent = `(${S})`;
+  $('svcNote').textContent = `Receipt currency: ${S} (${CS[S]}). Amounts are not converted.`;
+  $('paidNote').textContent = P === S || s.paid === '' || num(s.paid) === 0 ? ''
+    : c.paidInS !== null ? `Balance uses ${fmt(num(s.paid), P)} × ${num(s.payRate).toFixed(2)} = ${fmt(c.paidInS, S)}`
+    : 'Shown in ' + P + ' and not converted. Enter a rate below to calculate the balance.';
+  if (s.extra && num(s.usd) > 0 && !c.usdActive) warn.push('The USD amount section adds BDT, so it applies only when Services and Expenses is BDT. It is excluded from this receipt.');
+  if (P !== S && num(s.paid) > 0 && c.paidInS === null) warn.push(`Amount Paid is in ${P} but the receipt is in ${S}. It is not converted, so the balance is blank until you enter a conversion rate.`);
+  $('rateWarn').hidden = !warn.length; $('rateWarn').textContent = warn.join(' ');
+  $('taxAmt').value = c.tax.toFixed(2);
+  $('usdFormula').textContent = s.extra && c.usdActive
+    ? `USD Amount × USD to BDT Rate = ${num(s.usd).toFixed(2)} × ${num(s.rate).toFixed(2)} = ${fmt(c.convertedUsd, 'BDT')} (amount in BDT)\nAmount in BDT × 15% = ${fmt(c.tax, 'BDT')} (tax)\nAmount in BDT + tax = ${fmt(r2(c.convertedUsd + c.tax), 'BDT')} (final total in BDT for the USD amount)`
+    : '';
+  document.querySelectorAll('.cc').forEach(x => x.textContent = `(${S})`);
+  document.querySelectorAll('.row').forEach((r,i) => r.querySelector('.ra').value = c.lines[i].amount.toFixed(2));
+  showErrors(numericErrors());
+
+  const rows = c.lines.filter(l => l.amount > 0 || l.desc).map(l => `<tr><td>${esc(l.desc || 'Service')}</td><td class="n">${num(l.qty)}</td><td class="n">${money(r2(num(l.unit)))}</td><td class="n">${money(l.amount)}</td></tr>`).join('') + (c.convertedUsd > 0 ? `<tr><td>Ad spend</td><td class="n">1</td><td class="n">${money(c.convertedUsd)}</td><td class="n">${money(c.convertedUsd)}</td></tr>` : '');
+  const cls = c.status.split(' ')[0], inv = $('invNo').value;
+  const d = $('invDate').value ? new Date($('invDate').value + 'T00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+  $('sheet').innerHTML = `
+  <div class="rh"><div><h3>${esc($('agency').value || 'Your agency name')}</h3><div class="m">${esc($('agencyEmail').value || 'agency@email.com')}</div></div>
+   <div class="t">RECEIPT<div class="m" style="font-weight:600">${esc(inv)}</div><div class="m" style="font-weight:600">${d}</div></div></div>
+  <div class="meta"><div><b>Billed to</b>${esc($('client').value || 'Client name')}${$('clientEmail').value ? '<br>' + esc($('clientEmail').value) : ''}</div>
+   <div style="text-align:right"><b>Payment method</b>${esc($('method').value)}<br>${c.status ? `<span class="badge ${cls}">${c.status}</span>` : ''}</div></div>
+  <div style="overflow-x:auto"><table><thead><tr><th>Description</th><th class="n">Qty</th><th class="n">Unit</th><th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="sum">
+   <div><span>Subtotal</span><span>${money(c.gross)}</span></div>
+   ${c.discount > 0 ? `<div><span>Discount</span><span>−${money(c.discount)}</span></div>` : ''}
+   ${c.tax > 0 ? `<div><span>Tax (${TAX_PCT}%)</span><span>${money(c.tax)}</span></div>` : ''}
+   ${s.cashout ? `<div><span>Cash-out charge (2%)</span><span>${money(c.cashout)}</span></div>` : ''}
+   <div class="g"><span>Grand total</span><span>${money(c.finalTotal)}</span></div>
+   <div><span>Amount paid</span><span>${fmt(c.paidEntered, c.paidEntered === 0 ? S : P)}</span></div>
+   ${P !== S && c.paidEntered > 0 && c.paidInS !== null ? `<div><small>Conversion rate</small><small>1 ${P} = ${fmt(num(s.payRate), S)}</small></div>` : ''}
+   <div class="b"><span>${c.balance !== null && c.balance < 0 ? 'Overpaid' : 'Balance due'}</span><span>${c.balance === null ? '—' : money(Math.abs(c.balance))}</span></div>
+  </div>
+  ${$('notes').value.trim() ? `<div class="note"><b>Notes / reference:</b> ${esc($('notes').value.trim())}</div>` : ''}
+  <div class="bar">${idGraphic(inv)}<small>RECEIPT ID ${esc(inv)}</small></div>
+  <div class="thanks">Thank you for your business. We appreciate your trust.</div>`;
+  try { localStorage.setItem('probill.agency2', JSON.stringify({n:$('agency').value, e:$('agencyEmail').value})); } catch(_) {}
+}
+
+/* ============ ACTIONS ============ */
+function guarded(fn) {
+  const c = calculate(readState()), e = numericErrors().concat(requiredErrors(c));
+  showErrors(e);
+  if (e.length) { window.scrollTo({top:0,behavior:'smooth'}); toast('Fix the errors first'); return; }
+  fn();
+}
+function startNew(keepParties) {
+  $('invNo').value = newInvoiceNo(); dateTouched = false; $('invDate').value = today();
+  $('rows').innerHTML = ''; addRow();
+  ['usd','rate','payRate','notes'].forEach(i => $(i).value = ''); $('extraOn').checked = false; $('discount').value = '0'; $('paid').value = '0';
+  $('cashout').checked = false; $('method').value = 'Bank Transfer'; $('svcCur').value = 'BDT'; $('paidCur').value = 'BDT'; prevSvc = 'BDT';
+  if (!keepParties) { $('client').value = ''; $('clientEmail').value = ''; }
+  update();
+}
+$('invDate').addEventListener('input', () => { dateTouched = true; });
+// The optional USD section has its own independent toggle. Nothing else ever switches it ON or OFF,
+// and choosing USD as a currency never touches it. Switching OFF clears the section's values.
+function onToggle() {
+  if (!$('extraOn').checked) { $('usd').value = ''; $('rate').value = ''; }
+  update();
+}
+// Keep Amount Paid's currency in step with Services and Expenses until the user picks a different one.
+// A stale conversion rate is cleared whenever either currency changes.
+let prevSvc = 'BDT';
+$('svcCur').addEventListener('change', () => { if ($('paidCur').value === prevSvc) $('paidCur').value = $('svcCur').value; prevSvc = $('svcCur').value; $('payRate').value = ''; });
+$('paidCur').addEventListener('change', () => { $('payRate').value = ''; });
+$('extraOn').addEventListener('input', onToggle);
+$('extraOn').addEventListener('change', onToggle);
+document.querySelector('.form').addEventListener('input', update);
+document.querySelector('.form').addEventListener('change', update);
+$('addRow').onclick = () => { addRow(); update(); };
+$('genBtn').onclick = () => guarded(() => { toast('Receipt generated'); $('sheet').scrollIntoView({behavior:'smooth',block:'start'}); });
+$('printBtn').onclick = () => guarded(() => window.print());
+$('pdfBtn').onclick = () => guarded(() => { toast('Choose “Save as PDF” as the destination'); setTimeout(() => window.print(), 600); });
+// Download the receipt (only #sheet, never the buttons or the form) as a high-resolution PNG.
+$('pngBtn').onclick = () => guarded(async () => {
+  if (typeof html2canvas === 'undefined') { toast('PNG export could not load. Check your internet connection and reload the page.'); return; }
+  const btn = $('pngBtn'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing PNG…';
+  try {
+    update();                                            // use the latest form values
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = await html2canvas($('sheet'), {
+      scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: 1200,
+      // Same design at a fixed receipt width, so phones and desktops export an identical, readable image.
+      onclone: doc => { const el = doc.getElementById('sheet'); el.style.width = '560px'; el.style.maxWidth = 'none'; }
+    });
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('Image could not be created');
+    const name = `Receipt-${$('invNo').value}.png`;
+    const a = document.createElement('a');
+    if ('download' in a) {
+      a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } else if (navigator.canShare && navigator.canShare({files: [new File([blob], name, {type: 'image/png'})]})) {
+      await navigator.share({files: [new File([blob], name, {type: 'image/png'})]});   // older mobile browsers
+    } else { window.open(URL.createObjectURL(blob), '_blank'); }
+    toast('PNG downloaded');
+  } catch (err) { toast('Could not create the PNG. Please try again.'); }
+  finally { btn.disabled = false; btn.textContent = label; }
+});
+$('newBtn').onclick = () => { startNew(false); toast('New receipt started'); };
+$('resetBtn').onclick = () => { if (confirm('Reset the whole form, including agency details?')) { $('agency').value='LoR!K Craft'; $('agencyEmail').value=''; startNew(false); } };
+$('copyBtn').onclick = async () => {
+  try { await navigator.clipboard.writeText($('invNo').value); }
+  catch(_) { $('invNo').select(); document.execCommand('copy'); }
+  toast('Invoice number copied');
+};
+
+/* ============ INIT ============ */
+try { const a = JSON.parse(localStorage.getItem('probill.agency2') || 'null'); if (a) { $('agency').value = a.n || 'LoR!K Craft'; $('agencyEmail').value = a.e || ''; } } catch(_) {}
+startNew(true);
+// Refresh the default date if the tab stays open past midnight and the user never picked a date.
+setInterval(() => { if (!dateTouched && $('invDate').value !== today()) { $('invDate').value = today(); update(); } }, 60000);
+</script>
+</body>
+</html>
